@@ -1,0 +1,40 @@
+<resources>
+    <string name="app_name">Contact</string>
+    <string name="title_home">Manager</string>
+    <string name="title_contact">Contact</string>
+    <string name="title_sync">Sync</string>
+
+    <string name="time">2 days ago</string>
+    <string name="hot_news">hot</string>
+    <string name="press_again_exit">Press again to exit</string>
+    <string name="send">Send</string>
+
+    <string name="home">Home</string>
+    <string name="discover">Discover</string>
+    <string name="new_tip_start_dont_hide">Customize the animation between the Fragments, and do not hide self</string>
+    <string name="new_tip_start">Customize the animation between the Fragments</string>
+    <string name="more">more</string>
+    <string name="start_cycler">Start CyclerFragment</string>
+    <string name="start_with_pop">Start CyclerFragment, and finish self</string>
+    <string name="can_swipe">can be swipe-back</string>
+    <string name="all">all</string>
+    <string name="modify_title">Modify the title successfully</string>
+    <string name="modify">modify</string>
+    <string name="start_result_test">StartForResult Sample</string>
+    <string name="modify_success">Modify successfully!</string>
+    <string name="generate_contact_count">Generate Contact Count</string>
+    <string name="start">Start</string>
+
+
+    <string-array name="array_title">
+        <item>Andorid O Developer Preview</item>
+        <item>Build for a Multi-Screen World</item>
+        <item>Build Beautiful Apps</item>
+    </string-array>
+
+    <string-array name="array_content">
+        <item>An early look at the next version of Android for testing, development, and feedback. Get your apps ready for Android O!</item>
+        <item>Android runs on billions of handheld devices around the world, and it now supports these exciting, new form-factors.</item>
+        <item>Resources to get you started with designing and developing for Android.</item>
+    </string-array>
+</resources>
