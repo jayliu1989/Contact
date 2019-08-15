@@ -1,17 +1,25 @@
 package com.jay.contact.ui.fragment.contact;
 
+import android.content.ContentProviderOperation;
 import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.Context;
+import android.content.OperationApplicationException;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.provider.ContactsContract;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -35,19 +43,25 @@ import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 import butterknife.Unbinder;
 
 
 public class ContactTabFragment extends BaseMainFragment {
-    @BindView(R.id.toolbar)
-    Toolbar toolbar;
+    @BindView(R.id.tv_title)
+    TextView tvTitle;
     @BindView(R.id.recyclerView)
     RecyclerView recyclerView;
     @BindView(R.id.avi)
     AVLoadingIndicatorView avi;
+    @BindView(R.id.iv_right)
+    ImageView ivRight;
 
     View view;
     Unbinder unbinder;
+
+    CommonTask task;
+
 
     private ContactAdapter contactAdapter;
     private List<ContactModel> list = new ArrayList<>();
@@ -78,13 +92,39 @@ public class ContactTabFragment extends BaseMainFragment {
     }
 
     private void initView() {
-        toolbar.setTitle(R.string.title_contact);
-        toolbar.setLogo(R.drawable.ic_sync_black_24dp);
+        tvTitle.setText(R.string.title_contact);
+        ivRight.setVisibility(View.VISIBLE);
+        ivRight.setImageResource(R.drawable.ic_delete_24dp);
+        ivRight.setPadding(20, 20, 20, 20);
 
         contactAdapter = new ContactAdapter(R.layout.item_contact, list);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
         recyclerView.setAdapter(contactAdapter);
+    }
+
+
+    @OnClick(R.id.iv_right)
+    public void onViewClicked() {
+        new Thread(() -> {
+            list.clear();
+            Uri uri = Uri.parse("content://com.android.contacts/contacts"); // 访问所有联系人
+            ContentResolver resolver = getActivity().getContentResolver();
+            Cursor cursor = resolver.query(uri, new String[]{"_id"}, null, null, null);
+            Log.d("Contact", "count:" + cursor.getCount());
+            while (cursor.moveToNext()) {
+                int contactsId = cursor.getInt(0);
+                list.add(new ContactModel(contactsId));
+//                Log.d("Contact", "contactsId:" + contactsId);
+//                deleteContact(String.valueOf(contactsId));
+            }
+
+            deleteContact(list);
+        }).start();
+//
+//        new Thread(() -> {
+//            deleteContact(list);
+//        }).start();
     }
 
     @Override
@@ -94,10 +134,22 @@ public class ContactTabFragment extends BaseMainFragment {
 //                , getString(R.string.all), getString(R.string.more)));
         if (Build.VERSION.SDK_INT >= 21) {
             checkPermission();
-
         } else {
             startTask();
         }
+
+    }
+
+    @Override
+    public void onSupportVisible() {
+        super.onSupportVisible();
+
+    }
+
+    @Override
+    public void onSupportInvisible() {
+        super.onSupportInvisible();
+
     }
 
     private void checkPermission() {
@@ -121,7 +173,11 @@ public class ContactTabFragment extends BaseMainFragment {
     }
 
     private void startTask() {
-        CommonTask task = new CommonTask() {
+        if (task != null && !task.isCancelled()){
+            task.cancel(true);
+            task = null;
+        }
+        task = new CommonTask() {
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
@@ -152,7 +208,6 @@ public class ContactTabFragment extends BaseMainFragment {
                 avi.hide();
             }
         };
-
         task.execute();
     }
 
@@ -171,6 +226,8 @@ public class ContactTabFragment extends BaseMainFragment {
             contactModel.setId(Long.valueOf(contactId));
             Cursor phone = cr.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,
                     ContactsContract.CommonDataKinds.Phone.CONTACT_ID + "=" + contactId, null, null);
+
+            phoneNum.setLength(0);
             while (phone.moveToNext()) {
                 int numberFieldColumnIndex = phone.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
                 String phoneNumber = phone.getString(numberFieldColumnIndex);
@@ -204,7 +261,71 @@ public class ContactTabFragment extends BaseMainFragment {
     /* EventBus start */
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEventThread(QueryContactEvent contactEvent) {
+        Log.e("Contact", "load all");
+
+        if (avi != null && avi.isShown()) {
+            avi.hide();
+        }
+        if (!task.isCancelled())
+            task.cancel(true);
         contactAdapter.notifyDataSetChanged();
     }
+
     /* EventBus end */
+    //COLUMN_CONTACT_ID
+    public void deleteContact(String id) {
+        Log.d("Contact", "**delete start**");
+        ArrayList<ContentProviderOperation> ops = new ArrayList<ContentProviderOperation>();
+        //delete contact
+        ops.add(ContentProviderOperation.newDelete(ContactsContract.RawContacts.CONTENT_URI)
+                .withSelection(ContactsContract.RawContacts.CONTACT_ID + "=" + id, null)
+                .build());
+        //delete contact information such as phone number,email
+        ops.add(ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                .withSelection(ContactsContract.Data.CONTACT_ID + "=" + id, null)
+                .build());
+        try {
+            getActivity().getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+            Log.d("Contact", "delete contact success");
+        } catch (Exception e) {
+            Log.d("Contact", "delete contact failed");
+            Log.d("Contact", e.getMessage());
+        }
+        Log.d("Contact", "**delete end**");
+    }
+
+    public void deleteContact(List<ContactModel> contactModelList) {
+        Log.d("Contact", "**delete start**");
+        ArrayList<ContentProviderOperation> ops = new ArrayList<ContentProviderOperation>();
+
+        Log.d("Contact", "" + contactModelList.size());
+
+        for (ContactModel contactModel : contactModelList) {
+//            Log.d("Contact", "" + contactModel.getId());
+
+            //delete contact
+//            ops.add(ContentProviderOperation.newDelete(ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, contactModel.getId()))
+//                    .withYieldAllowed(true)
+//                    .build());
+            ops.add(ContentProviderOperation.newDelete(ContactsContract.RawContacts.CONTENT_URI)
+                    .withSelection(ContactsContract.RawContacts.CONTACT_ID + "=" + contactModel.getId(), null)
+                    .build());
+//            delete contact information such as phone number,email
+            ops.add(ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                    .withSelection(ContactsContract.Data.CONTACT_ID + "=" + contactModel.getId(), null)
+                    .build());
+        }
+
+        try {
+            getActivity().getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+            Log.d("Contact", "delete contact success");
+        } catch (Exception e) {
+            Log.d("Contact", "delete contact failed");
+            Log.d("Contact", e.getMessage());
+        }
+        Log.d("Contact", "**delete end**");
+        list.clear();
+        startTask();
+    }
+
 }

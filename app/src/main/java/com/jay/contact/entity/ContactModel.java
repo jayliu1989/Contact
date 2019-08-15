@@ -47,6 +47,10 @@ public class ContactModel implements Parcelable {
     public ContactModel() {
     }
 
+    public ContactModel(long id) {
+        this.id = id;
+    }
+
     protected ContactModel(Parcel in) {
         this.id = in.readLong();
         this.name = in.readString();

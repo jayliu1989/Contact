@@ -1,24 +1,28 @@
 package com.jay.contact.ui.fragment.home;
 
 import android.app.ProgressDialog;
+import android.content.ContentProviderOperation;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.OperationApplicationException;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.provider.ContactsContract;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.material.textfield.TextInputEditText;
 import com.jay.contact.R;
 import com.jay.contact.base.BaseMainFragment;
+import com.jay.contact.entity.ContactModel;
 import com.jay.contact.event.AddContactEvent;
 import com.jay.contact.event.ProgressValue;
 import com.jay.contact.event.TabSelectedEvent;
@@ -30,6 +34,9 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
@@ -39,18 +46,20 @@ import me.yokeyword.eventbusactivityscope.EventBusActivityScope;
 public class HomeTabFragment extends BaseMainFragment {
     @BindView(R.id.etContactCount)
     TextInputEditText etContactCount;
-    @BindView(R.id.toolbar)
-    Toolbar toolbar;
     @BindView(R.id.avi)
     AVLoadingIndicatorView avi;
+    @BindView(R.id.tv_title)
+    TextView tvTitle;
 
     View view;
     Unbinder unbinder;
+
     private ProgressDialog progressDialog;
     private ProgressValue progressValue;
 
 
     private int contactCount;
+    private List<ContactModel> list = new ArrayList<>();
 
 
     public static HomeTabFragment newInstance() {
@@ -80,15 +89,21 @@ public class HomeTabFragment extends BaseMainFragment {
     private void initView(View view) {
         EventBusActivityScope.getDefault(_mActivity).register(this);
 
-        toolbar.setTitle(R.string.home);
+        tvTitle.setText(R.string.home);
 
-        progressDialog = new ProgressDialog(getActivity(),ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog = new ProgressDialog(getActivity());
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
     }
 
     @Override
-    public void onLazyInitView(@Nullable Bundle savedInstanceState) {
-        super.onLazyInitView(savedInstanceState);
+    public void onSupportVisible() {
+        super.onSupportVisible();
 
+    }
+
+    @Override
+    public void onSupportInvisible() {
+        super.onSupportInvisible();
 
     }
 
@@ -119,7 +134,7 @@ public class HomeTabFragment extends BaseMainFragment {
         contactCount = 100;
         try {
             contactCount = Integer.valueOf(etContactCount.getText().toString().trim());
-        }catch (Exception e){
+        } catch (Exception e) {
             contactCount = 100;
         }
         startTask();
@@ -159,54 +174,26 @@ public class HomeTabFragment extends BaseMainFragment {
             }
         };
 
-        task.execute();
+        if (getActivity() != null  && getActivity().hasWindowFocus()){
+            task.execute();
+        }
     }
 
     private void generateContact() {
         progressValue = new ProgressValue();
+        ContactModel contactModel;
 
-        ContentValues values = new ContentValues();
-        StringBuilder sbName = new StringBuilder();
-        StringBuilder sbPhoneNumber = new StringBuilder();
         for (int i = 0; i < contactCount; i++) {
-            sbName.setLength(0);
-            sbPhoneNumber.setLength(0);
-            sbName.append("name");
-            sbName.append(i);
-            sbPhoneNumber.append("861335395");
-            sbPhoneNumber.append(i);
+            contactModel = new ContactModel();
+            contactModel.setName("name"+i);
+            contactModel.setPhoneNum("861335395"+i);
+            list.add(contactModel);
 
-            /*
-             * 向RawContacts.CONTENT_URI空值插入，
-             * 先获取Android系统返回的rawContactId
-             * 后面要基于此id插入值
-             */
-            Uri rawContactUri = getActivity().getContentResolver().insert(ContactsContract.RawContacts.CONTENT_URI, values);
-            long rawContactId = ContentUris.parseId(rawContactUri);
-            values.clear();
 
-            values.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId);
-            // 内容类型
-            values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE);
-            // 联系人名字
-            values.put(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, sbName.toString());
-            // 向联系人URI添加联系人名字
-            getActivity().getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
-            values.clear();
-
-            values.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId);
-            values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE);
-            // 联系人的电话号码
-            values.put(ContactsContract.CommonDataKinds.Phone.NUMBER, sbPhoneNumber.toString());
-            // 电话类型
-            values.put(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE);
-            // 向联系人电话号码URI添加电话号码
-            getActivity().getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
-            values.clear();
-
-            progressValue.setProgress(i);
-            EventBus.getDefault().post(progressValue);
         }
+
+        addContact(list);
+//        batchAddContact(list);
 
         EventBus.getDefault().post(new AddContactEvent());
 
@@ -221,7 +208,94 @@ public class HomeTabFragment extends BaseMainFragment {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEventThread(ProgressValue progressValue) {
         progressDialog.setProgress(progressValue.getProgress());
+        if (progressValue.getProgress() == contactCount){
+            progressDialog.hide();
+        }
     }
     /* EventBus end */
+
+    public void addContact(List<ContactModel> list){
+        ContentValues values = new ContentValues();
+        for (int i = 0; i < list.size(); i++) {
+            /*
+             * 向RawContacts.CONTENT_URI空值插入，
+             * 先获取Android系统返回的rawContactId
+             * 后面要基于此id插入值
+             */
+            Uri rawContactUri = getActivity().getContentResolver().insert(ContactsContract.RawContacts.CONTENT_URI, values);
+            long rawContactId = ContentUris.parseId(rawContactUri);
+            values.clear();
+
+            values.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId);
+            // 内容类型
+            values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE);
+            // 联系人名字
+            values.put(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, list.get(i).getName());
+            // 向联系人URI添加联系人名字
+            getActivity().getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
+            values.clear();
+
+            values.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId);
+            values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE);
+            // 联系人的电话号码
+            values.put(ContactsContract.CommonDataKinds.Phone.NUMBER, list.get(i).getPhoneNum());
+            // 电话类型
+            values.put(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE);
+            // 向联系人电话号码URI添加电话号码
+            getActivity().getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
+            values.clear();
+
+            progressValue.setProgress(i);
+            EventBus.getDefault().post(progressValue);
+        }
+    }
+
+    public void batchAddContact(List<ContactModel> list) {
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+
+        ArrayList<ContentProviderOperation> ops = new ArrayList<>();
+        int rawContactInsertIndex;
+        if (list == null || list.size() == 0) {
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            rawContactInsertIndex = ops.size();
+
+            ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                    .withYieldAllowed(true)
+                    .build());
+            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID,
+                            rawContactInsertIndex)
+                    .withValue(ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, list.get(i).getName())
+                    .withYieldAllowed(true)
+                    .build());
+            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawContactInsertIndex)
+                    .withValue(ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, list.get(i).getPhoneNum())
+                    .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                    .withYieldAllowed(true)
+                    .build());
+
+        }
+        try {
+            //这里才调用的批量添加
+            getActivity().getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        } catch (OperationApplicationException e) {
+            e.printStackTrace();
+        }
+
+        progressValue.setProgress(contactCount);
+        EventBus.getDefault().post(progressValue);
+    }
 
 }

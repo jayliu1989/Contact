@@ -4,16 +4,25 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 
 import com.jay.contact.R;
 import com.jay.contact.base.BaseMainFragment;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.Unbinder;
+
 
 public class SyncTabFragment extends BaseMainFragment {
-    private Toolbar mToolbar;
+
+    @BindView(R.id.tv_title)
+    TextView tvTitle;
+
+    View view;
+    Unbinder unbinder;
 
     public static SyncTabFragment newInstance() {
 
@@ -27,21 +36,35 @@ public class SyncTabFragment extends BaseMainFragment {
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_tab_sync, container, false);
+        view = inflater.inflate(R.layout.fragment_tab_sync, container, false);
+
+        unbinder = ButterKnife.bind(this,view);
         initView(view);
         return view;
     }
 
     private void initView(View view) {
-        mToolbar = view.findViewById(R.id.toolbar);
+        tvTitle.setText(R.string.title_sync);
+    }
 
-        mToolbar.setTitle(R.string.title_sync);
+    @Override
+    public void onSupportVisible() {
+        super.onSupportVisible();
+
+    }
+
+    @Override
+    public void onSupportInvisible() {
+        super.onSupportInvisible();
+
     }
 
 
     @Override
-    public void onLazyInitView(@Nullable Bundle savedInstanceState) {
-        super.onLazyInitView(savedInstanceState);
-
+    public void onDestroy() {
+        super.onDestroy();
+        if (unbinder != null){
+            unbinder.unbind();
+        }
     }
 }
