@@ -94,6 +94,7 @@ public class HomeTabFragment extends BaseMainFragment {
 
         progressDialog = new ProgressDialog(getActivity());
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+//        progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
     }
 
     @Override
@@ -252,8 +253,6 @@ public class HomeTabFragment extends BaseMainFragment {
     }
 
     public void batchAddContact(List<ContactModel> list) {
-        progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-
         ArrayList<ContentProviderOperation> ops = new ArrayList<>();
         int rawContactInsertIndex;
         if (list == null || list.size() == 0) {

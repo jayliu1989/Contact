@@ -114,9 +114,9 @@ public class ContactTabFragment extends BaseMainFragment {
             Log.d("Contact", "count:" + cursor.getCount());
             while (cursor.moveToNext()) {
                 int contactsId = cursor.getInt(0);
-                list.add(new ContactModel(contactsId));
+//                list.add(new ContactModel(contactsId));
 //                Log.d("Contact", "contactsId:" + contactsId);
-//                deleteContact(String.valueOf(contactsId));
+                deleteContact(String.valueOf(contactsId));
             }
 
             deleteContact(list);
