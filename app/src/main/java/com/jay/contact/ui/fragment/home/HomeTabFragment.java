@@ -35,6 +35,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import butterknife.BindView;
@@ -185,8 +186,8 @@ public class HomeTabFragment extends BaseMainFragment {
 
         for (int i = 0; i < contactCount; i++) {
             contactModel = new ContactModel();
-            contactModel.setName("name"+i);
-            contactModel.setPhoneNum("861335395"+i);
+            contactModel.setName("N"+System.currentTimeMillis());
+            contactModel.setPhoneNum("86133"+System.currentTimeMillis());
             list.add(contactModel);
 
 
